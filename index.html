@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attenuate Labs</title>
+<meta name="description" content="The catastrophe model for AI.">
+<meta property="og:title" content="Attenuate Labs">
+<meta property="og:description" content="The catastrophe model for AI.">
+<meta property="og:url" content="https://attenuatelabs.com">
+<meta name="theme-color" content="#f3f3f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0b0c" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3f3f1;
+    --ink: #0d0e10;
+    --muted: #6a6d72;
+    --trace: rgba(13, 14, 16, 0.22);
+    --rule: rgba(13, 14, 16, 0.12);
+    --signal: #2340ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0b0c;
+      --ink: #eef0f2;
+      --muted: #80848b;
+      --trace: rgba(238, 240, 242, 0.2);
+      --rule: rgba(238, 240, 242, 0.1);
+      --signal: #6e85ff;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 13px/1.5 "IBM Plex Mono", ui-monospace, monospace;
+    -webkit-font-smoothing: antialiased;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    min-height: 100svh;
+    padding: clamp(20px, 3.5vw, 40px) clamp(16px, 4vw, 48px);
+    gap: clamp(32px, 6vh, 72px);
+  }
+  .bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+  }
+  .mark { font-weight: 500; display: flex; align-items: center; gap: 10px; }
+  .mark svg { width: 22px; height: 12px; overflow: visible; }
+  .mark path { fill: none; stroke: var(--signal); stroke-width: 1.6; stroke-linecap: round; }
+  .status { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .status i {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--signal);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.25; } }
+
+  main { max-width: 1100px; }
+  h1 {
+    font-family: Archivo, system-ui, sans-serif;
+    font-weight: 600;
+    font-variation-settings: "wdth" 112;
+    font-size: clamp(40px, 7.4vw, 108px);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+  }
+  .lede {
+    margin-top: clamp(20px, 3vw, 32px);
+    max-width: 44ch;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  figure {
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .plot { flex: 1; position: relative; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  figcaption > span:last-child { white-space: nowrap; }
+  #rho { color: var(--ink); font-variant-numeric: tabular-nums; }
+  #rho.hot { color: var(--signal); }
+
+  footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 24px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  footer a { color: var(--ink); text-decoration: none; }
+  footer a::after { content: " \2197"; color: var(--signal); }
+  footer a:hover { color: var(--signal); }
+  @media (prefers-reduced-motion: reduce) { .status i { animation: none; } }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <span class="mark">
+      <svg viewBox="0 0 22 12" aria-hidden="true"><path d="M1 6 Q3 -2 5 6 Q7 12 9 6 Q11 2 13 6 Q15 8.5 17 6 Q19 4.8 21 6" /></svg>
+      Attenuate Labs
+    </span>
+    <span class="status"><i></i>In development</span>
+  </div>
+
+  <main>
+    <h1>The catastrophe model for&nbsp;AI.</h1>
+    <p class="lede">We measure how AI systems fail together, so correlated risk can be priced and insured instead of excluded.</p>
+  </main>
+
+  <figure>
+    <div class="plot"><canvas id="trace" aria-label="Many deployment signals hit by one shared shock, then decaying together" role="img"></canvas></div>
+    <figcaption>
+      <span>Fig. 1 &mdash; <span id="n">40</span> deployments, one shared model</span>
+      <span>Correlation <span id="rho">0.04</span></span>
+    </figcaption>
+  </figure>
+
+  <footer>
+    <a href="mailto:info@attenuatelabs.com">info@attenuatelabs.com</a>
+    <span>&copy; 2026 Attenuate Labs</span>
+  </footer>
+
+<script>
+(() => {
+  const cv = document.getElementById('trace');
+  const ctx = cv.getContext('2d');
+  const rhoEl = document.getElementById('rho');
+  const nEl = document.getElementById('n');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const STEP = 3;
+
+  let W, H, rows, gap, cols, val, hot, ou, gain, lag;
+  let colors, t = 0, shockAt = -1e9, nextShock = 90;
+
+  function readColors() {
+    const s = getComputedStyle(document.documentElement);
+    colors = { trace: s.getPropertyValue('--trace').trim(), signal: s.getPropertyValue('--signal').trim() };
+  }
+
+  function gauss() {
+    return Math.sqrt(-2 * Math.log(Math.random() || 1e-9)) * Math.cos(2 * Math.PI * Math.random());
+  }
+
+  function size() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    rows = Math.max(10, Math.min(48, Math.floor(H / 9)));
+    gap = H / (rows + 4);
+    cols = Math.ceil(W / STEP) + 2;
+    val = Array.from({ length: rows }, () => new Float32Array(cols));
+    hot = Array.from({ length: rows }, () => new Float32Array(cols));
+    ou = new Float32Array(rows);
+    gain = Float32Array.from({ length: rows }, () => 0.6 + 0.6 * Math.random());
+    lag = Float32Array.from({ length: rows }, () => Math.random() * 10);
+    nEl.textContent = rows;
+  }
+
+  // One new sample per row: independent noise plus a damped common shock.
+  function tick() {
+    t++;
+    if (t >= nextShock) { shockAt = t; nextShock = t + 360 + Math.random() * 240; }
+    let env = 0;
+    for (let i = 0; i < rows; i++) {
+      ou[i] += -0.12 * ou[i] + 0.5 * gauss();
+      const dt = t - shockAt - lag[i];
+      const e = dt > 0 ? Math.exp(-dt / 34) : 0;
+      const v = ou[i] * gap * 0.12 + e * Math.sin(dt * 0.32) * gap * 2.2 * gain[i];
+      val[i].copyWithin(0, 1); val[i][cols - 1] = v;
+      hot[i].copyWithin(0, 1); hot[i][cols - 1] = e;
+      env += e;
+    }
+    return env / rows;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < rows; i++) {
+      const y0 = gap * (i + 2.5), v = val[i], h = hot[i];
+      ctx.strokeStyle = colors.trace;
+      ctx.beginPath();
+      for (let j = 0; j < cols; j++) {
+        const x = j * STEP, y = y0 - v[j];
+        j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = colors.signal;
+      ctx.beginPath();
+      let pen = false;
+      for (let j = 0; j < cols; j++) {
+        const x = j * STEP, y = y0 - v[j];
+        if (h[j] > 0.12) { pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y); pen = true; }
+        else pen = false;
+      }
+      ctx.stroke();
+    }
+  }
+
+  function setRho(env) {
+    const rho = 0.04 + 0.93 * Math.min(1, env * 1.15);
+    rhoEl.textContent = rho.toFixed(2);
+    rhoEl.classList.toggle('hot', rho > 0.3);
+  }
+
+  function frame() {
+    const env = tick();
+    draw();
+    if (t % 4 === 0) setRho(env);
+    requestAnimationFrame(frame);
+  }
+
+  function still() {
+    t = 0; shockAt = -1e9; nextShock = Math.floor(cols * 0.45);
+    let env = 0, peak = 0;
+    for (let k = 0; k < cols; k++) { env = tick(); peak = Math.max(peak, env); }
+    nextShock = Infinity;
+    draw();
+    setRho(peak);
+  }
+
+  readColors();
+  size();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); if (reduce) draw(); });
+  let rt;
+  addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { size(); if (reduce) still(); }, 120);
+  });
+
+  if (reduce) still();
+  else {
+    for (let k = 0; k < cols; k++) tick();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
