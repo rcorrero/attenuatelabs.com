@@ -136,7 +136,7 @@
     <div class="plot"><canvas id="trace" aria-label="Many deployment signals hit by one shared shock, then decaying together" role="img"></canvas></div>
     <figcaption>
       <span>Fig. 1 &mdash; <span id="n">40</span> deployments, one shared model</span>
-      <span>Correlation <span id="rho">0.04</span></span>
+      <span>Mean correlation <span id="rho">0.00</span></span>
     </figcaption>
   </figure>
 
@@ -153,9 +153,10 @@
   const nEl = document.getElementById('n');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const STEP = 3;
+  const WIN = 90; // samples (~1.5s) in the correlation window
 
   let W, H, rows, gap, cols, val, hot, ou, gain, lag;
-  let colors, t = 0, shockAt = -1e9, nextShock = 90;
+  let colors, t = 0, shockAt = -1e9, nextShock = 90, tau = 34;
 
   function readColors() {
     const s = getComputedStyle(document.documentElement);
@@ -179,25 +180,48 @@
     hot = Array.from({ length: rows }, () => new Float32Array(cols));
     ou = new Float32Array(rows);
     gain = Float32Array.from({ length: rows }, () => 0.6 + 0.6 * Math.random());
-    lag = Float32Array.from({ length: rows }, () => Math.random() * 10);
+    lag = Float32Array.from({ length: rows }, () => Math.random() * 2.5);
     nEl.textContent = rows;
   }
 
   // One new sample per row: independent noise plus a damped common shock.
   function tick() {
     t++;
-    if (t >= nextShock) { shockAt = t; nextShock = t + 360 + Math.random() * 240; }
-    let env = 0;
+    if (t >= nextShock) {
+      shockAt = t;
+      tau = 10 + Math.random() * 75;
+      nextShock = t + 5 * tau + 180 + Math.random() * 240;
+    }
     for (let i = 0; i < rows; i++) {
       ou[i] += -0.12 * ou[i] + 0.5 * gauss();
       const dt = t - shockAt - lag[i];
-      const e = dt > 0 ? Math.exp(-dt / 34) : 0;
+      const e = dt > 0 ? Math.exp(-dt / tau) : 0;
       const v = ou[i] * gap * 0.12 + e * Math.sin(dt * 0.32) * gap * 2.2 * gain[i];
       val[i].copyWithin(0, 1); val[i][cols - 1] = v;
       hot[i].copyWithin(0, 1); hot[i][cols - 1] = e;
-      env += e;
     }
-    return env / rows;
+  }
+
+  // Mean pairwise Pearson correlation across rows over samples [end - k, end).
+  // Uses sum_{i,j} r_ij = (1/k) * sum_t (sum_i z_it)^2 on standardized rows.
+  function meanCorr(end) {
+    const k = Math.min(WIN, end), S = new Float64Array(k);
+    let n = 0;
+    for (let i = 0; i < rows; i++) {
+      const v = val[i];
+      let m = 0, ss = 0;
+      for (let j = end - k; j < end; j++) m += v[j];
+      m /= k;
+      for (let j = end - k; j < end; j++) ss += (v[j] - m) ** 2;
+      const sd = Math.sqrt(ss / k);
+      if (!sd) continue;
+      for (let j = 0; j < k; j++) S[j] += (v[end - k + j] - m) / sd;
+      n++;
+    }
+    if (n < 2) return 0;
+    let q = 0;
+    for (let j = 0; j < k; j++) q += S[j] * S[j];
+    return (q / k - n) / (n * (n - 1));
   }
 
   function draw() {
@@ -225,26 +249,26 @@
     }
   }
 
-  function setRho(env) {
-    const rho = 0.04 + 0.93 * Math.min(1, env * 1.15);
-    rhoEl.textContent = rho.toFixed(2);
+  function setRho(rho) {
+    rhoEl.textContent = (Math.abs(rho) < 0.005 ? 0 : rho).toFixed(2).replace('-', '\u2212');
     rhoEl.classList.toggle('hot', rho > 0.3);
   }
 
   function frame() {
-    const env = tick();
+    tick();
     draw();
-    if (t % 4 === 0) setRho(env);
+    if (t % 4 === 0) setRho(meanCorr(cols));
     requestAnimationFrame(frame);
   }
 
   function still() {
-    t = 0; shockAt = -1e9; nextShock = Math.floor(cols * 0.45);
-    let env = 0, peak = 0;
-    for (let k = 0; k < cols; k++) { env = tick(); peak = Math.max(peak, env); }
+    const at = Math.floor(cols * 0.45);
+    t = 0; shockAt = -1e9; nextShock = at;
+    for (let k = 0; k < cols; k++) tick();
     nextShock = Infinity;
     draw();
-    setRho(peak);
+    // The sample from time T sits in column T - 1; measure the window the shock starts in.
+    setRho(meanCorr(Math.min(cols, at - 1 + WIN)));
   }
 
   readColors();
