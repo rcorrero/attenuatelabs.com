@@ -205,6 +205,17 @@
 
   @media (max-width: 640px) {
     .prospects, .status-grid { grid-template-columns: 1fr; align-content: start; }
+    /* Phones: the two prospects sit side by side, compact, so neither hides below the pinned step. */
+    #pricingScene { padding-block: 8px; }
+    .prospects { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-content: center; }
+    .prospect { gap: 5px; }
+    .prospect .who { font-size: 10px; }
+    .prospect .how { font-size: 10.5px; line-height: 1.4; min-height: 4.2em; }
+    .prospect .big { font-size: clamp(32px, 10.5vw, 44px); }
+    .prospect .unit { font-size: 9.5px; letter-spacing: 0.04em; }
+    .bars { gap: 6px; margin-top: 4px; }
+    .bar-row { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; font-size: 11px; }
+    .bar-row .track { grid-column: 1 / -1; grid-row: 2; height: 8px; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -221,7 +232,7 @@
       <svg viewBox="0 0 22 12" aria-hidden="true"><path d="M1 6 Q3 -2 5 6 Q7 12 9 6 Q11 2 13 6 Q15 8.5 17 6 Q19 4.8 21 6" /></svg>
       Attenuate Labs
     </a>
-    <span class="status"><i></i>Simulated inputs · v0</span>
+    <span class="status"><i></i>Simulated example · v0</span>
   </div>
 </header>
 
@@ -229,7 +240,7 @@
 
 <main>
   <section class="hero frame">
-    <p class="step">Attenuate v0 · Walkthrough</p>
+    <p class="step">Attenuate v0 · A simulated example</p>
     <h1>How the model works.</h1>
     <p class="lede" id="intro"></p>
     <p class="cue" aria-hidden="true"><i></i>Scroll</p>
@@ -252,16 +263,16 @@
           <section class="col now">
             <h2>Running now</h2>
             <ul>
-              <li>Eval ingestion and the shared-factor estimator<small>Measures which deployments fail together</small></li>
+              <li>Reading test results from AI deployments<small>Finds which deployments fail together</small></li>
               <li>Event catalog and loss engine<small>Releases, framework updates, defects revealed, legal shocks by use case</small></li>
               <li>Policy terms, reinsurance and capital charges<small>Loss curves, probable maximum losses, per-policy charges</small></li>
-              <li>Eval design study<small>Sizes the first real eval</small></li>
+              <li>Test design study<small>Sizes the first real round of tests</small></li>
             </ul>
           </section>
           <section class="col">
             <h2>Simulated today</h2>
             <ul>
-              <li>Eval results<small>Generated from a known answer, which the estimator largely recovers</small></li>
+              <li>Test results from AI deployments<small>Generated from a known answer, which the model largely recovers</small></li>
               <li>Claim, severity and legal parameters<small>Set by use case; placeholders until calibrated to claims data</small></li>
               <li>The book<small>1,000 synthetic companies and their policies</small></li>
             </ul>
@@ -269,9 +280,9 @@
           <section class="col">
             <h2>Next</h2>
             <ul>
-              <li>First real eval<small>A few dozen deployments, about 200,000 graded model calls</small></li>
+              <li>First real round of tests<small>A few dozen AI deployments, about 200,000 graded calls</small></li>
               <li>Test suites for each use case<small>Graded suites for the job each deployment does</small></li>
-              <li>Private pooling<small>Results combined across companies without sharing them</small></li>
+              <li>Private pooling<small>Each company’s results added into one shared total, never exposed on their own</small></li>
               <li>Calibration<small>To AI claims and litigation data</small></li>
               <li>Distribution<small>Packaged for the platforms reinsurers already use</small></li>
             </ul>
@@ -298,6 +309,7 @@
   const fmtK = v => v >= 1e6 ? fmtM(v / 1e6) : '$' + Math.round(v / 1e3) + 'K';
   const pct = v => Math.round(v * 100) + '%';
   const pct1 = v => (v * 100).toFixed(1) + '%';
+  const numWord = n => ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][n] || String(n);
   function seeded(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function niceStep(x) { const e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e; }
   function tokens() {
@@ -368,7 +380,7 @@
       ctx.globalAlpha = labels * smooth((t - 0.5 - pi * 0.12) / 0.5);
       line(x0, yTop, x1, yTop, C.muted);
       line(x0, yTop, x0, yTop + 5, C.muted); line(x1, yTop, x1, yTop + 5, C.muted);
-      text(`Provider ${p} · ${pct1(provShare[pi])}`, x0, yTop - 7, { color: C.muted, size: W < 640 ? 8.5 : 10, spacing: W < 640 ? '0.02em' : '0.08em' });
+      text(`Model provider ${p} · ${pct1(provShare[pi])}`, x0, yTop - 7, { color: C.muted, size: W < 640 ? 8.5 : 10, spacing: W < 640 ? '0.02em' : '0.08em' });
       ctx.globalAlpha = 1;
     });
     // model labels
@@ -431,8 +443,11 @@
   function drawEvals(t) {
     const tr = evals.traces, n = tr.length, m = evals.n_stresses;
     const narrow = W < 700;
-    const A = narrow ? { x0: 34, x1: W - 6, y0: 8, y1: H * 0.58 } : { x0: 40, x1: W * 0.6, y0: 10, y1: H - 26 };
-    const B = narrow ? { x0: 44, x1: W - 8, y0: H * 0.66, y1: H - 40 } : { x0: W * 0.68, x1: W - 10, y0: 22, y1: H - 40 };
+    // On narrow screens the bar chart sits under the traces; its height is set first so the
+    // traces' label and the chart's title never meet, however short the stage gets.
+    const hB = narrow ? clamp(H * 0.26, 56, 140) : 0;
+    const A = narrow ? { x0: 34, x1: W - 6, y0: 8, y1: H - 84 - hB } : { x0: 40, x1: W * 0.6, y0: 10, y1: H - 26 };
+    const B = narrow ? { x0: 44, x1: W - 8, y0: H - 40 - hB, y1: H - 40 } : { x0: W * 0.68, x1: W - 10, y0: 22, y1: H - 40 };
     // traces
     const gap = (A.y1 - A.y0) / (n + 1), p = ease((t - 0.2) / 4.8), upto = Math.max(1, Math.floor(p * (m - 1)) + 1);
     const sx = j => A.x0 + j / (m - 1) * (A.x1 - A.x0);
@@ -461,14 +476,14 @@
     });
     ctx.restore();
     ctx.globalAlpha = 1 - zk;
-    text('Simulated tested deployments, grouped by provider', A.x0 - 26, A.y1 + 18, { size: 9.5 });
+    text(narrow ? 'Simulated deployments, by provider' : 'Simulated tested deployments, grouped by provider', A.x0 - 26, A.y1 + 18, { size: 9.5 });
     text(`${m} stresses →`, A.x1, A.y1 + 18, { size: 9.5, align: 'right' });
     ctx.globalAlpha = 1;
     if (zk > 0) {
       const a1 = smooth((t - 8.4) / 0.5), a2 = smooth((t - 9.0) / 0.5);
       ctx.globalAlpha = a1; ctx.strokeStyle = C.signal; ctx.lineWidth = 1.2; ctx.strokeRect(ox - 4, oy - 4, bw * sc + 8, bh * sc + 8); ctx.globalAlpha = 1;
       labelBG(`This simulation: ${n} deployments`, ox + bw * sc + 16, oy + (bh * sc) / 2 + 4, C.signal, a1, 'left', narrow ? 9 : 10);
-      labelBG('At scale: thousands to millions', ox + bw / 2, oy + bh / 2 + 24, C.ink, a2, 'center', narrow ? 9 : 10.5);
+      labelBG('At scale: potentially millions of deployments', ox + bw / 2, oy + bh / 2 + 24, C.ink, a2, 'center', narrow ? 8.5 : 10.5);
     }
     // spectrum
     const pb = smooth((t - 4.6) / 0.6);
@@ -491,17 +506,31 @@
       ctx.stroke();
       nul.forEach((v, i) => dot(B.x0 + slot * (i + 0.5), ly(v), 2.4, C.muted, pb * pl));
       ctx.globalAlpha = pb * pl;
-      text('Chance level', B.x0 + slot * (k + 0.6), ly(nul[k]) - 10, { size: 9.5 });
+      text('Chance alone', B.x0 + slot * (k + 0.6), ly(nul[k]) - 10, { size: 9.5 });
     }
     ctx.globalAlpha = pb;
-    text('Shared factors found', B.x0, B.y0 - 8, { color: C.ink, size: 10 });
-    text('Factor', B.x1, B.y1 + 28, { size: 9.5, align: 'right' });
+    text('How strongly each failure pattern recurs', B.x0, B.y0 - 8, { color: C.ink, size: 10 });
+    text('Pattern', B.x1, B.y1 + 28, { size: 9.5, align: 'right' });
     ctx.globalAlpha = 1;
   }
 
   // ---------- scene 5: the tail ----------
   function drawTail(t) {
-    const m = { l: 58, r: 18, t: W < 640 ? 62 : 44, b: 42 };
+    // Lay the legend out first so the plot always starts below it.
+    const narrow = W < 640, lsz = narrow ? 9 : 10, lsp = narrow ? '0.04em' : '0.08em', lrow = narrow ? 16 : 18;
+    const items = [[C.signal, 'Correlated as measured', 'line'], [C.ink, 'Assumed independent', 'line'],
+                   [C.wash, narrow ? 'Shock-size range' : 'Shock-size range, 10th–90th pct', 'box'], [C.ink, 'True answer, simulation only', 'diamond']];
+    const lx0 = narrow ? 0 : 58, lx1 = W - 18, lay = [];
+    let lxp = lx0, lyp = 16;
+    items.forEach(([col, label, kind]) => {
+      ctx.font = `500 ${lsz}px ${MONO}`; if ('letterSpacing' in ctx) ctx.letterSpacing = lsp;
+      const w = ctx.measureText(label.toUpperCase()).width + (narrow ? 28 : 34);
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+      if (lxp + w > lx1 && lxp > lx0) { lxp = lx0; lyp += lrow; }
+      lay.push([col, label, kind, lxp, lyp]);
+      lxp += w + (narrow ? 8 : 10);
+    });
+    const m = { l: 58, r: 18, t: lyp + (narrow ? 24 : 28), b: 42 };
     const x0 = m.l, x1 = W - m.r, y0 = H - m.b, y1 = m.t;
     const lx = v => x0 + (Math.log(v) - Math.log(2)) / (Math.log(1000) - Math.log(2)) * (x1 - x0);
     const ymaxRaw = Math.max(...ep.high), step = niceStep(ymaxRaw / 5), ymax = Math.ceil(ymaxRaw / step) * step;
@@ -535,10 +564,14 @@
     curve(ep.measured, C.signal);
     const pm = smooth((t - 4.8) / 0.6);
     if (pm > 0) {
-      [[ep.aep200_measured, C.signal], [ep.aep200_independent, C.ink]].forEach(([v, col]) => {
+      // On a short chart the two points sit close together; the upper label then goes above-left
+      // of its point so it can't land on the lower curve.
+      const tight = ly(ep.aep200_independent) - ly(ep.aep200_measured) < 30;
+      [[ep.aep200_measured, C.signal, tight], [ep.aep200_independent, C.ink, false]].forEach(([v, col, above]) => {
         ctx.globalAlpha = pm;
         dot(lx(200), ly(v), 6, C.bg, pm); dot(lx(200), ly(v), 4, col, pm);
-        text('$' + Math.round(v) + 'M', lx(200) + 10, ly(v) + 14, { color: C.ink, size: 11, upper: false });
+        if (above) text('$' + v.toFixed(1) + 'M', lx(200) - 10, ly(v) - 6, { color: C.ink, size: 11, upper: false, align: 'right' });
+        else text('$' + v.toFixed(1) + 'M', lx(200) + 10, ly(v) + 14, { color: C.ink, size: 11, upper: false });
         ctx.globalAlpha = 1;
       });
       ctx.globalAlpha = pm; line(lx(200), y0, lx(200), ly(ep.aep200_measured) + 8, C.rule); ctx.globalAlpha = 1;
@@ -547,18 +580,12 @@
       ctx.moveTo(tx, ty - 6); ctx.lineTo(tx + 6, ty); ctx.lineTo(tx, ty + 6); ctx.lineTo(tx - 6, ty); ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1;
     }
     // legend
-    const items = [[C.signal, 'Measured correlation', 'line'], [C.ink, 'Failures independent', 'line'], [C.wash, 'Shock-size range, 10th–90th pct', 'box'], [C.ink, 'True answer, simulation only', 'diamond']];
-    let lxp = x0, lyp = 16;
-    items.forEach(([col, label, kind]) => {
-      ctx.font = `500 10px ${MONO}`; if ('letterSpacing' in ctx) ctx.letterSpacing = '0.08em';
-      const w = ctx.measureText(label.toUpperCase()).width + 34;
-      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-      if (lxp + w > x1) { lxp = x0; lyp += 18; }
-      if (kind === 'line') line(lxp, lyp - 3.5, lxp + 18, lyp - 3.5, col, 2);
+    const tw = narrow ? 18 : 24;
+    lay.forEach(([col, label, kind, lxp, lyp]) => {
+      if (kind === 'line') line(lxp, lyp - 3.5, lxp + tw - 6, lyp - 3.5, col, 2);
       else if (kind === 'diamond') { ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(lxp + 9, lyp - 9); ctx.lineTo(lxp + 14, lyp - 4); ctx.lineTo(lxp + 9, lyp + 1); ctx.lineTo(lxp + 4, lyp - 4); ctx.closePath(); ctx.stroke(); }
-      else { ctx.fillStyle = col; ctx.fillRect(lxp, lyp - 8, 18, 9); }
-      text(label, lxp + 24, lyp, { size: 10 });
-      lxp += w + 10;
+      else { ctx.fillStyle = col; ctx.fillRect(lxp, lyp - 8, tw - 6, 9); }
+      text(label, lxp + tw, lyp, { size: lsz, spacing: lsp });
     });
   }
 
@@ -698,14 +725,26 @@
   const hiringRow = UC.keys.indexOf('hiring');
   function drawUseCase(t) {
     const narrow = W < 700, nR = UC.keys.length, nC = book.nodes.length;
-    const lw = narrow ? 110 : Math.min(230, W * 0.19), top = 30, gw = W - lw, gh = H - top - 4;
+    const lw = narrow ? 110 : Math.min(230, W * 0.19), top = 46, gw = W - lw, gh = H - top - 4;
     const cw = gw / nC, rh = gh / nR;
     const c = (0.46 * Math.min(cw, rh)) / Math.sqrt(UCMAX + 1), rDot = clamp(c * 0.6, 0.8, 2.6);
     const colLit = smooth((t - 1.6) / 0.6), rowLit = smooth((t - 3.4) / 0.6);
-    if (colLit > 0) { ctx.globalAlpha = 0.6 * colLit; ctx.fillStyle = C.wash; ctx.fillRect(lw + cw * originIdx, top - 26, cw, gh + 26); ctx.globalAlpha = 1; }
+    if (colLit > 0) { ctx.globalAlpha = 0.6 * colLit; ctx.fillStyle = C.wash; ctx.fillRect(lw + cw * originIdx, 22, cw, gh + top - 22); ctx.globalAlpha = 1; }
     if (rowLit > 0 && hiringRow >= 0) { ctx.globalAlpha = 0.6 * rowLit; ctx.fillStyle = C.wash; ctx.fillRect(0, top + rh * hiringRow, W, rh); ctx.globalAlpha = 1; }
-    book.nodes.forEach((name, j) => text(narrow ? shortNode(name) : name, lw + cw * (j + 0.5), 14,
-      { color: j === originIdx && colLit > 0.5 ? C.signal : C.muted, size: narrow ? 8.5 : 10, align: 'center', spacing: narrow ? '0.02em' : '0.08em' }));
+    // column headers: which provider makes each model, then the model itself
+    text('Model provider', 0, 12, { size: narrow ? 8.5 : 9.5 });
+    text('Model', 0, 32, { size: narrow ? 8.5 : 9.5 });
+    provOrder.forEach(p => {
+      const idx = book.providers.map((q, i) => (q === p ? i : -1)).filter(i => i >= 0);
+      const xa = lw + cw * idx[0] + 4, xb = lw + cw * (idx[idx.length - 1] + 1) - 4;
+      line(xa, 17, xb, 17, C.muted); line(xa, 17, xa, 21, C.muted); line(xb, 17, xb, 21, C.muted);
+      text(narrow ? p : `Model provider ${p}`, (xa + xb) / 2, 12, { color: C.ink, size: narrow ? 8.5 : 9.5, align: 'center', spacing: narrow ? '0.02em' : '0.08em' });
+    });
+    book.nodes.forEach((name, j) => {
+      const kind = name.split('-')[1] || name;
+      text(narrow ? (kind === 'frontier' ? 'fr.' : kind === 'small' ? 'sm.' : kind) : kind + ' model', lw + cw * (j + 0.5), 32,
+        { color: j === originIdx && colLit > 0.5 ? C.signal : C.muted, size: narrow ? 8.5 : 9.5, align: 'center', spacing: narrow ? '0.02em' : '0.08em' });
+    });
     UC.keys.forEach((k, i) => {
       const y = top + i * rh, isH = i === hiringRow;
       line(0, y, W, y, C.rule);
@@ -757,20 +796,35 @@
     if (!narrow) {
       const x = x0 + size + Math.max(40, W * 0.06), sz = Math.min(96, H * 0.17);
       const aR = smooth((t - 4.0) / 0.6), aR2 = smooth((t - 4.4) / 0.6);
-      ctx.globalAlpha = aR; text('Within a provider', x, y0 + 36, { size: 10 }); big(MX.within.toFixed(2), x, y0 + 40 + sz * 0.92, sz, C.signal);
-      ctx.globalAlpha = aR2; text('Across providers', x, y0 + 86 + sz, { size: 10 }); big(MX.across.toFixed(2), x, y0 + 90 + sz * 1.92, sz, C.ink);
+      ctx.globalAlpha = aR; text('Within a model provider', x, y0 + 36, { size: 10 }); big(MX.within.toFixed(2), x, y0 + 40 + sz * 0.92, sz, C.signal);
+      ctx.globalAlpha = aR2; text('Across model providers', x, y0 + 86 + sz, { size: 10 }); big(MX.across.toFixed(2), x, y0 + 90 + sz * 1.92, sz, C.ink);
       text('Average failure correlation between deployments', x, y0 + 122 + sz * 2, { size: 9.5 });
       ctx.globalAlpha = 1;
     }
   }
 
   // ---------- step: the moat ----------
-  const FLY = [['Deployers run the tests', 'to qualify for coverage'], ['The footprint sharpens', 'more deployments, more stresses'],
-               ['Pricing improves', 'capital follows measured risk'], ['Insurers require the test', 'the standard for AI liability']];
+  const FLY = [['Deployers take the tests', 'to get covered on better terms'], ['The footprint sharpens', 'more data, less guesswork'],
+               ['Pricing improves', 'less capital held for uncertainty'], ['Insurers ask for the test', 'tested risks are cheaper to cover']];
+  function textWidth(str, size, spacing) {
+    ctx.font = `500 ${size}px ${MONO}`; if ('letterSpacing' in ctx) ctx.letterSpacing = spacing;
+    const w = ctx.measureText(str.toUpperCase()).width;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+    return w;
+  }
   function drawMoat(t) {
-    const narrow = W < 760;
-    const R = narrow ? Math.min(W * 0.3, H * 0.24) : Math.min(H * 0.31, W * 0.16);
-    const cx = W / 2, cy = narrow ? 18 + R : H / 2;
+    // Narrow screens stack the legend under the ring; when that won't fit (a phone with its
+    // browser bars showing), the legend sits beside a smaller ring instead.
+    const narrow = W < 760, side = narrow && H < 315;
+    let R, cx, cy;
+    if (side) {
+      const lw = Math.max(...FLY.map(([l1, l2]) => Math.max(textWidth(`4  ${l1}`, 9.5, '0.02em'), 18 + textWidth(l2, 8.5, '0.02em'))));
+      R = clamp(Math.min(H * 0.32, (W - lw - 64) / 2), 30, 64);
+      cx = R + 30; cy = H / 2;
+    } else {
+      R = narrow ? Math.min(W * 0.3, H * 0.24) : Math.min(H * 0.31, W * 0.16);
+      cx = W / 2; cy = narrow ? 18 + R : H / 2;
+    }
     const pr = ease(t / 1.4), lap = 2.2, tp = 1.6, laps = Math.max(0, (t - tp) / lap), TAU = Math.PI * 2;
     ctx.globalAlpha = 0.55 + 0.3 * clamp(laps / 3); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5 + 1.5 * clamp(laps / 3);
     ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + pr * TAU); ctx.stroke();
@@ -790,13 +844,18 @@
       ctx.globalAlpha = app; ctx.strokeStyle = fl > 0.05 ? C.signal : C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 8, 0, TAU); ctx.stroke();
       if (fl > 0.01) dot(x, y, 8, C.signal, app * fl);
       ctx.globalAlpha = app;
-      if (narrow) {
+      if (side) {
+        text(String(i + 1), x, y + 3.5, { color: fl > 0.4 ? C.bg : C.ink, size: 9, align: 'center' });
+        const pitch = Math.min(50, (H - 16) / 4), lx = cx + R + 34, ly = cy + pitch * (i - 2) + pitch / 2 - 2;
+        text(`${i + 1}  ${l1}`, lx, ly, { color: C.ink, size: 9.5, spacing: '0.02em' });
+        text(l2, lx + 18, ly + 13, { size: 8.5, spacing: '0.02em' });
+      } else if (narrow) {
         text(String(i + 1), x, y + 3.5, { color: fl > 0.4 ? C.bg : C.ink, size: 9, align: 'center' });
         const ly = cy + R + 40 + i * 30;
         text(`${i + 1}  ${l1}`, 0, ly, { color: C.ink, size: 10 });
         text(l2, 22, ly + 13, { size: 9 });
       } else {
-        const off = 24;
+        const off = 36; // clears the outer rings that grow with each lap
         if (i === 0) { text(l1, x, y - off - 14, { color: C.ink, size: 10.5, align: 'center' }); text(l2, x, y - off, { size: 9.5, align: 'center' }); }
         if (i === 2) { text(l1, x, y + off + 10, { color: C.ink, size: 10.5, align: 'center' }); text(l2, x, y + off + 24, { size: 9.5, align: 'center' }); }
         if (i === 1) { text(l1, x + off, y - 2, { color: C.ink, size: 10.5 }); text(l2, x + off, y + 13, { size: 9.5 }); }
@@ -812,9 +871,13 @@
     }
     const aC = smooth((t - 1.0) / 0.6);
     ctx.globalAlpha = aC;
-    text('The moat', cx, cy - R * 0.24, { color: C.signal, size: 10, align: 'center' });
-    big('Failure data', cx, cy + R * 0.06, Math.max(15, R * 0.19), C.ink, 'center');
-    big('that compounds', cx, cy + R * 0.3, Math.max(15, R * 0.19), C.ink, 'center');
+    if (side && R < 52) text('The moat', cx, cy + 3.5, { color: C.signal, size: 9, align: 'center' });
+    else {
+      const bs = side ? R * 0.2 : Math.max(15, R * 0.19);
+      text('The moat', cx, cy - R * 0.24, { color: C.signal, size: side ? 9 : 10, align: 'center' });
+      big('Failure data', cx, cy + R * 0.06, bs, C.ink, 'center');
+      big('that compounds', cx, cy + R * 0.3, bs, C.ink, 'center');
+    }
     ctx.globalAlpha = 1;
   }
 
@@ -839,7 +902,7 @@
   const S = [
     { id: 'book', name: 'The book', canvas: drawBook, dur: 2.2, hold: 9,
       head: 'Every company is building on the same few models.',
-      lede: `A simulated book of ${book.insureds.toLocaleString()} companies running ${book.deployments.toLocaleString()} AI deployments across ${UC.keys.length} use cases. ${pct(book.top3_share)} of the deployments run on three providers' models.`,
+      lede: `A simulated book of ${book.insureds.toLocaleString()} companies running ${book.deployments.toLocaleString()} AI deployments across ${UC.keys.length} use cases. ${pct(book.top3_share)} of the deployments run on models from three model providers.`,
       fig: `Fig. 1 — Simulated book: ${book.insureds.toLocaleString()} insureds, ${book.deployments.toLocaleString()} AI deployments, $${book.limits_bn}B of policy limits`,
       readout: () => `Top three providers: <b>${pct(book.top3_share)}</b>`,
       alt: 'Dots for every AI deployment in the book, clustered by the model it runs on. Provider A holds the two largest clusters.' },
@@ -850,8 +913,8 @@
       readout: () => `<b>${STRESS.length}</b> stress families across every layer`,
       alt: `A deployment drawn as five layers, use case on top and model at the bottom. Seven stresses from the library fire at the layers they target.` },
     { id: 'graded', name: 'One stress', canvas: drawSuite, dur: 5.4, hold: 9,
-      head: 'Every stress is graded against a baseline.',
-      lede: `The same graded suite runs with and without the stress. In this simulation, a customer-service deployment on ${HN.node} fails ${pct1(HN.rate_base)} of items at baseline and ${pct1(HN.rate_stress)} under a single stress.`,
+      head: 'We run the same graded test with and without each stress.',
+      lede: `The change in failure rate is the deployment’s response to that stress. In this simulation, a customer-service deployment on ${HN.node} fails ${pct1(HN.rate_base)} of items at baseline and ${pct1(HN.rate_stress)} under a single stress.`,
       fig: `Fig. 3 — Graded test suite, simulated deployment ${HN.deployment}, stress ${HN.stress}`,
       readout: () => `Failure rate <b>${pct1(HN.rate_stress)}</b> vs ${pct1(HN.rate_base)} at baseline`,
       alt: `A grid of ${HN.items} test items. ${pct1(HN.rate_base)} fail at baseline; ${pct1(HN.rate_stress)} fail under the stress.` },
@@ -863,22 +926,22 @@
       alt: `Deployments in the book arranged by use case (rows) and model (columns). A defect in ${ev.origin} lights one column across every use case; a ruling on AI hiring lights one row across every model.` },
     { id: 'evals', name: 'The measurement', canvas: drawEvals, dur: 9.6, hold: 14,
       head: 'Then we measure which deployments fail together.',
-      lede: `In this simulation, ${evals.n_deployments} deployments run the same tests under ${evals.n_stresses} stresses. Their failure rates move together: ${evals.k} shared factors explain ${pct(evals.absorption)} of how they respond, well above chance. At scale, the same tests run on thousands to millions of deployments.`,
-      fig: `Fig. 5 — Simulated eval results: ${evals.n_deployments} deployments × ${evals.n_stresses} stresses, ${evals.items_per_test} graded items each`,
-      readout: () => `<b>${evals.k}</b> shared factors above chance`,
-      alt: 'Response traces for each tested deployment across stresses, with shared movement highlighted, and a bar chart of factor strength against a chance line. The traces then shrink into a field standing for the thousands of deployments tested at scale.' },
+      lede: `In this simulation, ${evals.n_deployments} deployments take the same tests under ${evals.n_stresses} stresses. ${numWord(evals.k)} failure patterns recur across them, far above chance, and explain ${pct(evals.absorption)} of how deployments respond. At scale, the same tests can run on potentially millions of deployments.`,
+      fig: `Fig. 5 — Simulated test results: ${evals.n_deployments} deployments × ${evals.n_stresses} stresses, ${evals.items_per_test} graded items each`,
+      readout: () => `<b>${evals.k}</b> failure patterns above chance`,
+      alt: 'Failure-rate traces for each tested deployment across stresses, with shared movement highlighted, and a bar chart of how strongly each failure pattern recurs, against a line showing chance alone. The traces then shrink into a field standing for the potentially millions of deployments tested at scale.' },
     { id: 'footprint', name: 'The footprint', canvas: drawFootprint, dur: 5.2, hold: 10,
-      head: 'Deployments on one provider’s models fail on the same stresses.',
-      lede: `That pattern is the footprint: who fails together, and how hard. In this simulation, failure correlation averages ${MX.within.toFixed(2)} between deployments on the same provider and ${MX.across.toFixed(2)} across providers.`,
-      fig: `Fig. 6 — Failure correlation implied by the shared factors, ${evals.n_deployments} simulated deployments`,
-      readout: () => `Within a provider <b>${MX.within.toFixed(2)}</b> · across ${MX.across.toFixed(2)}`,
+      head: 'In this simulation, failures cluster by model provider.',
+      lede: `That pattern is the footprint: who fails together, and how hard. Here failure correlation averages ${MX.within.toFixed(2)} between deployments on the same model provider and ${MX.across.toFixed(2)} across providers. Provider is only one source: shared frameworks, tools, prompts and use cases can tie failures together too, and the tests pick up whichever are there.`,
+      fig: `Fig. 6 — Failure correlation between ${evals.n_deployments} simulated deployments, grouped by model provider`,
+      readout: () => `Within a model provider <b>${MX.within.toFixed(2)}</b> · across ${MX.across.toFixed(2)}`,
       alt: `A correlation matrix of the tested deployments. Shuffled, it looks like noise; sorted by provider, four bright blocks appear along the diagonal.` },
     { id: 'moat', name: 'The moat', canvas: drawMoat, dur: 8.6, hold: 10,
       head: 'Every test sharpens the footprint.',
-      lede: 'Deployers test to qualify for coverage, insurers price from the footprint, and better pricing brings more deployments to test. The failure data compounds with every test and can’t be scraped. Each company’s results are designed to stay private: only aggregates are pooled.',
+      lede: 'More deployments and more stresses mean correlations are measured, not guessed. A sharper footprint means better pricing, so insurers ask for the test, and tested deployments get covered on better terms, which brings more deployers to the tests. By design, each company’s results are summarized and added into one shared total; the footprint is computed from that total alone, so no single company’s results are exposed.',
       fig: 'Fig. 7 — The data flywheel',
-      readout: () => 'Private by design',
-      alt: 'A loop of four steps: deployers run the tests, the footprint sharpens, pricing improves, insurers require the test. A pulse circles the loop and a new ring grows with each lap.' },
+      readout: () => 'Can’t be scraped · private by design',
+      alt: 'A loop of four steps: deployers take the tests, the footprint sharpens, pricing improves, insurers ask for the test. A pulse circles the loop and a new ring grows with each lap.' },
     { id: 'event', name: 'One event', canvas: t => drawEvent(t, false), dur: 5.5, hold: 12,
       head: 'One flaw reaches all of them at once.',
       lede: `A defect in ${ev.origin} comes to light after ${ev.lookback_months} months of use. All ${ev.exposed} deployments routed to it were failing the same way the whole time.`,
@@ -892,19 +955,20 @@
       readout: null,
       alt: `Scattered deployments flicker at different times. Insured loss ${fmtM(ev.loss_independent)}.` },
     { id: 'tail', name: 'The tail', canvas: drawTail, dur: 5.6, hold: 13,
-      head: 'Same average loss. Nearly twice the 1-in-200.',
-      lede: `Across ${D.run.years.toLocaleString()} simulated years, the average annual loss is about $${ep.aal_measured.toFixed(1)}M either way. Measured correlation nearly doubles the 1-in-200-year loss, from $${Math.round(ep.aep200_independent)}M to $${Math.round(ep.aep200_measured)}M. The band shows how uncertain the shock size still is; the simulation’s true answer, $${ep.aep200_true.toFixed(1)}M, falls inside it.`,
+      // ⁠ (word joiner) keeps "1-in-200-year" from breaking at its hyphens.
+      head: 'Same average loss. Nearly twice the 1-⁠in-⁠200-⁠year loss.',
+      lede: `The same simulated book, run two ways over ${D.run.years.toLocaleString()} years: failures correlated as the tests measured them, or assumed independent. Average annual loss is about $${ep.aal_measured.toFixed(1)}M either way, but the loss exceeded in 1 year out of 200 is $${ep.aep200_measured.toFixed(1)}M correlated versus $${ep.aep200_independent.toFixed(1)}M independent.`,
       fig: `Fig. 10 — Annual insured loss by return period, ${D.run.years.toLocaleString()} simulated years`,
-      readout: () => `1-in-200: <b>$${Math.round(ep.aep200_measured)}M</b> vs $${Math.round(ep.aep200_independent)}M`,
-      alt: `Loss curves by return period. The measured-correlation curve rises far above the independent curve in the tail: $${Math.round(ep.aep200_measured)}M versus $${Math.round(ep.aep200_independent)}M at 1 in 200 years. The true answer, $${ep.aep200_true.toFixed(1)}M, sits inside the uncertainty band.` },
+      readout: () => `Simulation’s true answer: <b>$${ep.aep200_true.toFixed(1)}M</b>, inside the shaded band`,
+      alt: `Two loss curves for the same book by return period. The curve with measured correlation rises far above the curve with failures assumed independent: $${ep.aep200_measured.toFixed(1)}M versus $${ep.aep200_independent.toFixed(1)}M at 1 in 200 years. The true answer, $${ep.aep200_true.toFixed(1)}M, sits inside the uncertainty band.` },
     { id: 'pricing', name: 'Pricing', html: 'pricingScene', dur: 2.2, hold: 10,
       head: 'Then price the correlation, one policy at a time.',
-      lede: 'Two companies with the same use cases and volumes. Adding each one to the book changes its capital by very different amounts.',
+      lede: 'Two companies with the same use cases and volumes: one concentrated on A-frontier, the other diversified, with each deployment pinned to a fixed model version so a provider’s update can’t change it overnight. Adding each one to the book changes its capital by very different amounts.',
       fig: 'Fig. 11 — Exact change in portfolio capital from adding each prospect, at 10% cost of capital',
       readout: () => `<b>$${D.prospects[0].per_dollar.toFixed(2)}</b> vs $${D.prospects[1].per_dollar.toFixed(2)} per $1 of expected loss` },
     { id: 'today', name: 'Status', html: 'statusScene', dur: 0.5, hold: 10,
       head: 'Built and running today.',
-      lede: `Every layer runs end to end: ${D.run.years.toLocaleString()} simulated years of a ${book.insureds.toLocaleString()}-company book in about a minute, covered by ${D.run.tests} automated tests. The inputs stay simulated until the first real eval.`,
+      lede: `Every layer of the model runs end to end: ${D.run.years.toLocaleString()} simulated years of a ${book.insureds.toLocaleString()}-company book in about a minute. Its inputs, including the test results from AI deployments, stay simulated until our first real round of tests.`,
       fig: 'Attenuate v0 · October 2026',
       readout: () => 'attenuatelabs.com' },
   ];
@@ -912,7 +976,7 @@
   // ---------- build the scrolling steps ----------
   const story = $('story'), rail = $('rail');
   const total = String(S.length).padStart(2, '0');
-  $('intro').textContent = `${S.length} steps, from adversarial tests on AI deployments to a price on correlated risk. Every number on this page comes from a v0 simulation; the real system is built to test thousands to millions of deployments.`;
+  $('intro').textContent = `This page walks through a simulated example to show how the model works, in ${S.length} steps from adversarial tests on AI deployments to a price on correlated risk. The book of AI deployments, the test results and every number below come from that simulation. The real system is built to run the same tests on potentially millions of deployments.`;
 
   S.forEach((s, i) => {
     const el = document.createElement('section');
