@@ -237,13 +237,14 @@
 /* Attenuate demo figures: one drawing per beat of the story, shared by the demo film and the demo page.
 
    attenuateFigures(DATA) returns { figures, use }. Before drawing, the caller hands over its canvas
-   state with use({ ctx, W, H, u, C, A, mono, head }):
+   state with use({ ctx, W, H, u, C, A, mono, head, fit }):
      ctx   the 2D context, already translated so the figure's box starts at (0, 0)
      W, H  the box size in canvas pixels
      u     the size unit: 1 on the page, about 2 in the film (every type size and margin scales by it)
      C     colors { bg, ink, muted, sub, signal, wash }; the film is always dark, the page follows the theme
      A     overall opacity (the film fades figures in and out)
      mono, head  font families for labels and for big numbers
+     fit   true on the page, whose canvas ends at the figure's edge: labels and layouts stay inside it
    Then figures[id].draw(t) draws the figure at t seconds into its beat. Every figure is a pure function
    of t: any moment can be drawn at any time, forward or backward (the page scrolls both ways).
    Each figure also carries `dur` (seconds its animation needs), `tag` (what the figure is: an
@@ -288,8 +289,19 @@ function attenuateFigures(D) {
     const c = g.ctx, px = size * g.u;
     c.font = font(kind, px); c.fillStyle = color; c.textAlign = align; c.textBaseline = base;
     c.letterSpacing = (kind === 'head' ? -0.025 * px : upper ? 0.08 * px : 0) + 'px';
-    setA(a); c.fillText(upper ? s.toUpperCase() : s, x, y);
+    const str = upper ? s.toUpperCase() : s;
+    if (g.fit) x += fitShift(str, x, align);
+    setA(a); c.fillText(str, x, y);
     c.letterSpacing = '0px';
+  }
+  // The page's canvas ends at the figure's edge, so a label running past it would be cut; use({ fit: true })
+  // moves it back inside. The film's canvas runs past its figures, so the film leaves fit off.
+  function fitShift(str, x, align) {
+    const c = g.ctx, T = c.getTransform(), k = T.a, w = c.measureText(str).width;
+    const left = T.a * (align === 'center' ? x - w / 2 : align === 'right' ? x - w : x) + T.e;
+    const over = left + w * k - c.canvas.width + k;
+    if (over > 0) return -Math.min(over, left - k) / k;
+    return left < k ? (k - left) / k : 0;
   }
   function tw(s, o = {}) {
     const { size = 11, kind = 'mono', upper = kind === 'mono' } = o;
@@ -571,7 +583,7 @@ function attenuateFigures(D) {
     dur: 5, tag: `Simulated book: ${fmt(BOOK.deployments)} AI deployments at ${fmt(BOOK.insureds)} companies, by the model they run on`,
     src: 'Over 80%: AIUC data via actuary.info',
     draw(t) {
-      const L = memo('book', () => bookLayout(g.W, g.H));
+      const L = memo('book', () => bookLayout(g.W, g.H - (g.fit ? 22 * g.u : 0)));
       BOOK.node.forEach((j, k) => {
         const a = 0.25 + 0.6 * eo(ramp(t, 0.1 + j * 0.12, 0.9 + j * 0.12));
         dot(L.pos[2 * k], L.pos[2 * k + 1], L.rDot, j <= 1 ? g.C.ink : g.C.ink, a * (j <= 1 ? 0.9 : 0.55));
@@ -585,7 +597,7 @@ function attenuateFigures(D) {
     dur: 5.5, tag: `Simulated example: a defect revealed in ${D.event.origin}, the book's largest model`, src: '',
     draw(t) {
       const { u } = g;
-      const L = memo('book', () => bookLayout(g.W, g.H));
+      const L = memo('book', () => bookLayout(g.W, g.H - (g.fit ? 22 * g.u : 0)));
       const lit = D.event.lit, oi = BOOK.nodes.indexOf(D.event.origin), o = L.centers[oi];
       const speed = Math.max(g.W, g.H) * 0.5, t0 = 0.625, dim = eio(ramp(t, 0, 0.6));  // t0: on the score's hit
       BOOK.node.forEach((j, k) => dot(L.pos[2 * k], L.pos[2 * k + 1], L.rDot, g.C.ink, lerp(0.85 * (j <= 1 ? 0.9 : 0.55), 0.22, dim)));
@@ -901,7 +913,7 @@ function attenuateFigures(D) {
         });
         dot(x, y, 5 * u, hot > 0 ? g.C.signal : g.C.ink, k * (0.5 + 0.5 * hot));
       });
-      text('Which deployments fail together', rx + rw / 2, cy + R + 30 * u, { size: nar ? 8.5 : 10.5, color: g.C.sub, align: 'center', a: ramp(t, 2.6, 3.0) });
+      text('Which deployments fail together', rx + rw / 2, Math.min(cy + R + 30 * u, H - 4 * u), { size: nar ? 8.5 : 10.5, color: g.C.sub, align: 'center', a: ramp(t, 2.6, 3.0) });
     },
   };
 
@@ -910,7 +922,7 @@ function attenuateFigures(D) {
   function lossChart(t, series, opts = {}) {
     const { marks = [], yMax = null } = opts;
     const { W, H, u } = g, nar = narrow();
-    const x0 = (nar ? 34 : 56) * u, x1 = W - (nar ? 8 : 150) * u, y0 = H - 24 * u, y1 = 10 * u;
+    const x0 = (nar ? 34 : 56) * u, x1 = W - (nar ? 8 : g.fit ? 206 : 150) * u, y0 = H - 24 * u, y1 = 10 * u;
     const lo = Math.log10(2), hi = 3;
     const a = ramp(t, 0, 0.4);
     const X = axesRP(x0, x1, y0, y1, a, { lo, hi });
@@ -1214,7 +1226,7 @@ function attenuateFigures(D) {
         box(bx, nar ? y : y - bh / 2, (X(v) - bx) * k, bh, col, al);
         text(`${(v * 100).toFixed(2)}%`, X(v) + 12 * u, nar ? y + bh - 1 * u : y + 9 * u, { size: nar ? 15 : 26, kind: 'head', color: i ? g.C.signal : g.C.ink, upper: false, a: ramp(t, 1.0 + i * 0.8, 1.3 + i * 0.8) });
       });
-      text('Share of simulated years in which the true loss tops the estimated 1-in-200', bx, H - 6 * u,
+      text(nar ? 'Years the true loss tops the estimated 1-in-200' : 'Share of simulated years in which the true loss tops the estimated 1-in-200', bx, H - 6 * u,
         { size: nar ? 8 : 10.5, color: g.C.sub, a: ramp(t, 1.8, 2.3) });
     },
   };
@@ -1308,7 +1320,7 @@ if (typeof module !== 'undefined') module.exports = attenuateFigures;
     { ch: 3, fig: 'andrew', head: 'Hurricane Andrew made catastrophe models the standard.',
       lede: `Before 1992, insurers sized hurricane risk with rules of thumb. Andrew caused $15.5B of insured losses and contributed to 11 insolvencies ${cite('andrew')}. Catastrophe models became the industry standard.` },
     { ch: 3, fig: 'aiandrew', head: 'AI’s Andrew hasn’t happened yet.',
-      lede: 'Every catastrophe risk ends up priced on one or two models the market trusts: RMS and AIR for natural catastrophes, CyberCube for cyber. AI has none yet. The one trusted before its first catastrophe will set the standard.' },
+      lede: 'Every catastrophe risk ends up priced on one or two models the whole market trusts. AI has none yet. The one trusted before its first catastrophe will set the standard.' },
     { ch: 4, fig: 'history', head: 'Catastrophe models learn from past losses. AI has almost none.',
       lede: `Hurricane models draw on storm records back to 1851 ${cite('hurdat')}. AI liability claims have barely begun, and they describe models that have already been replaced.` },
     { ch: 4, fig: 'benchmarks', head: 'Benchmarks score models, not how deployments fail together.',
@@ -1411,7 +1423,7 @@ if (typeof module !== 'undefined') module.exports = attenuateFigures;
     ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, s.w, s.h);
     const u = s.w < 640 ? 1 : clamp(s.w / 1150, 0.95, 1.12);
-    FIG.use({ ctx, W: s.w, H: s.h, u, C, A: 1, mono: MONO, head: HEAD });
+    FIG.use({ ctx, W: s.w, H: s.h, u, C, A: 1, mono: MONO, head: HEAD, fit: true });
     FIG.figures[s.fig].draw(t);
     ctx.globalAlpha = 1;
   }
